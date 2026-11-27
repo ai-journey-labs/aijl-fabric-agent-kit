@@ -1,0 +1,36 @@
+{
+  "_comment": "Source for .mcp.json. scripts/kit_setup.py generates the git-ignored .mcp.json from this file on each workstation, wrapping each command in cmd /c on Windows and adding the identity mode's settings below. This is a kit file: versions were pinned on 16 Nov 2026 (see KIT_CHANGELOG.md), and an upgrade is a new kit version or a recorded change tested in development first.",
+  "servers": {
+    "fabric": {
+      "command": "uvx",
+      "args": ["--with", "azure-identity~=1.24", "ms-fabric-mcp-server@0.8.7"],
+      "_comment_identity": "The server uses DefaultAzureCredential. azure-identity 1.24.0 or later is required so that AZURE_TOKEN_CREDENTIALS can name a single credential. The ~= form avoids a > character, which cmd /c would treat as a redirection on Windows."
+    },
+    "powerbi-modeling": {
+      "command": "npx",
+      "args": ["-y", "@microsoft/powerbi-modeling-mcp@1.0.0", "--start"],
+      "eula": {
+        "url": "https://go.microsoft.com/fwlink/?LinkId=2381247",
+        "env": {"PBI_MODELING_MCP_ACCEPT_EULA": "true"}
+      },
+      "_comment_eula": "Use of this server is subject to Microsoft's EULA for the Power BI Authoring MCP server, at the url above. The kit never accepts it on anyone's behalf. The lead operator decides during setup and records the decision under Tooling in 01_environment_overview.md, and each operator sets FABRIC_AGENT_PBI_EULA to match. kit_setup.py adds the env above to .mcp.json only when that setting is accepted, and otherwise leaves the server out. The variable grants acceptance for the server process only and stores nothing.",
+      "platforms": ["win32-x64", "win32-arm64", "linux-x64", "linux-arm64", "darwin-arm64"],
+      "_comment_platforms": "Platforms with a published binary for version 1.0.0, checked on 25 Nov 2026. Intel Macs (darwin-x64) are not supported; kit_setup.py leaves the server out of .mcp.json there and says so."
+    }
+  },
+  "_comment_identity_modes": "Settings added to each server for the identity mode in FABRIC_AGENT_IDENTITY (docs/security_and_access.md, Identity). Every mode pins each server to one credential, so neither can fall back to another sign-in on the workstation. The powerbi-modeling server defaults to interactive sign-in when no --authmode is given. Modes user and managed-identity are not yet tested end to end.",
+  "identity_modes": {
+    "certificate": {
+      "fabric": {"env": {"AZURE_TOKEN_CREDENTIALS": "EnvironmentCredential"}},
+      "powerbi-modeling": {"args": ["--authmode=serviceprincipal"]}
+    },
+    "user": {
+      "fabric": {"env": {"AZURE_TOKEN_CREDENTIALS": "AzureCliCredential"}},
+      "powerbi-modeling": {"args": ["--authmode=interactive"]}
+    },
+    "managed-identity": {
+      "fabric": {"env": {"AZURE_TOKEN_CREDENTIALS": "ManagedIdentityCredential"}},
+      "powerbi-modeling": {"args": ["--authmode=managedidentity"]}
+    }
+  }
+}

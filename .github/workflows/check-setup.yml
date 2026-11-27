@@ -1,0 +1,103 @@
+name: check-setup
+
+# Runs scripts/kit_setup.py on Windows, macOS and Linux, once for each identity mode, and
+# checks that it completes, generates a valid .mcp.json for the platform with that mode's
+# credential pinning, and then reports it as matching the kit. It also checks that the
+# powerbi-modeling server is left out until the EULA decision is set, and is configured with
+# Microsoft's acceptance variable once it is accepted. The runners have no
+# credentials, so the script reports items to do; that is expected.
+
+on:
+  pull_request:
+    paths:
+      - "scripts/kit_setup.py"
+      - "scripts/mcp_servers.json"
+      - "scripts/copilot_terminal_rules.json"
+      - ".claude/settings.local.json.example"
+      - ".github/workflows/check-setup.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/kit_setup.py"
+      - "scripts/mcp_servers.json"
+      - "scripts/copilot_terminal_rules.json"
+      - ".claude/settings.local.json.example"
+      - ".github/workflows/check-setup.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        identity: [certificate, user, managed-identity]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Run setup, then check
+        shell: bash
+        run: |
+          set +e
+          python scripts/kit_setup.py > first.txt 2>&1
+          python - "${{ matrix.identity }}" <<'EOF'
+          import json, sys
+          from pathlib import Path
+          # Before the EULA decision is set, the powerbi-modeling server must be left out.
+          first = json.loads(Path(".mcp.json").read_text())["mcpServers"]
+          Path("first_has_pbi.txt").write_text("yes" if "powerbi-modeling" in first else "no")
+          path = Path(".claude/settings.local.json")
+          data = json.loads(path.read_text())
+          data["env"]["FABRIC_AGENT_IDENTITY"] = sys.argv[1]
+          data["env"]["FABRIC_AGENT_PBI_EULA"] = "accepted"
+          path.write_text(json.dumps(data, indent=2))
+          EOF
+          python scripts/kit_setup.py --copilot > setup.txt 2>&1
+          setup_exit=$?
+          python scripts/kit_setup.py --check > check.txt 2>&1
+          check_exit=$?
+          set -e
+          cat setup.txt check.txt
+          python - "$setup_exit" "$check_exit" "${{ matrix.identity }}" <<'EOF'
+          import json, sys
+          from pathlib import Path
+          setup, check = Path("setup.txt").read_text(), Path("check.txt").read_text()
+          problems = []
+          for name, code, out in (("setup", sys.argv[1], setup), ("check", sys.argv[2], check)):
+              if code not in ("0", "1"):
+                  problems.append(f"{name} exited with {code}")
+              if "Traceback" in out or "Result:" not in out:
+                  problems.append(f"{name} did not complete")
+          config = json.loads(Path(".mcp.json").read_text())["mcpServers"]
+          expected = "cmd" if sys.platform == "win32" else "uvx"
+          if config["fabric"]["command"] != expected:
+              problems.append(f"fabric command is {config['fabric']['command']}, expected {expected}")
+          mode = sys.argv[3]
+          pinning = json.loads(Path("scripts/mcp_servers.json").read_text())["identity_modes"][mode]
+          want_env = pinning["fabric"]["env"]["AZURE_TOKEN_CREDENTIALS"]
+          if config["fabric"].get("env", {}).get("AZURE_TOKEN_CREDENTIALS") != want_env:
+              problems.append(f"fabric is not pinned to {want_env}")
+          if Path("first_has_pbi.txt").read_text() != "no":
+              problems.append("powerbi-modeling was configured before the EULA decision was set")
+          if "powerbi-modeling" not in config:
+              problems.append("powerbi-modeling is missing although the EULA is accepted")
+          else:
+              want_arg = pinning["powerbi-modeling"]["args"][0]
+              if want_arg not in config["powerbi-modeling"]["args"]:
+                  problems.append(f"powerbi-modeling does not have {want_arg}")
+              if config["powerbi-modeling"].get("env", {}).get("PBI_MODELING_MCP_ACCEPT_EULA") != "true":
+                  problems.append("powerbi-modeling does not carry the EULA acceptance")
+          if f"identity mode {mode}" not in check:
+              problems.append(f"check did not report identity mode {mode}")
+          if ".mcp.json matches the kit" not in check:
+              problems.append("check did not report .mcp.json as matching the kit")
+          if not Path(".claude/settings.local.json").exists():
+              problems.append("setup did not create .claude/settings.local.json")
+          print("\n".join(problems) or "setup script behaves as expected on this platform")
+          sys.exit(1 if problems else 0)
+          EOF

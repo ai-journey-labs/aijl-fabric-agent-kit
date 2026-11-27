@@ -1,0 +1,9 @@
+{
+  "_comment": "Terminal rules for GitHub Copilot in VS Code. They belong in each operator's VS Code User settings under chat.tools.terminal.autoApprove; Copilot ignores them in workspace settings. Add them with: python scripts/kit_setup.py --apply-copilot-rules. A value of true runs the command without asking; false, or approve false, always asks, even after an earlier approval. The Azure CLI uses the last --method given, so a get call that names a method a second time (--method, an abbreviation of it, or -m) always asks. This is a kit file.",
+  "rules": {
+    "/^az rest --method get\\b/i": true,
+    "/^az rest --method get\\b.*\\s(--m|-m)/i": false,
+    "/\\baz rest\\b.*--method\\s+delete\\b/i": { "approve": false, "matchCommandLine": true },
+    "/\\bgit push\\b.*(--force|-f\\b)/": { "approve": false, "matchCommandLine": true }
+  }
+}

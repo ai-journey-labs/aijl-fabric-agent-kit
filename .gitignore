@@ -1,0 +1,22 @@
+# Local credentials and per-operator settings
+.claude/settings.local.json
+
+# Returns from human steps (may contain tenant detail or business data)
+agent_output/admin_returns/
+agent_output/it_returns/
+agent_output/business_sme_returns/
+
+# Skill test workspaces
+skill_tests/
+
+# Certificates and keys
+*.pem
+*.pfx
+*.key
+
+# Generated per workstation by scripts/kit_setup.py
+.mcp.json
+.mcp.json.bak
+
+# Python bytecode
+__pycache__/
