@@ -1,0 +1,13 @@
+{
+  "_comment": "Copy to .claude/settings.local.json (git-ignored) and replace each value on your own workstation. Never a client secret. Never write a real value anywhere else in the project. Fully restart VS Code after any change.",
+  "_comment_identity": "FABRIC_AGENT_IDENTITY is certificate (options A and B), user (option D) or managed-identity (option E); see SETUP.md step 7 for the lines each mode keeps. Remove the lines your mode does not use.",
+  "_comment_eula": "FABRIC_AGENT_PBI_EULA is accepted or declined: the lead operator's decision on Microsoft's EULA for the powerbi-modeling server, recorded under Tooling in 01_environment_overview.md (SETUP.md step 7). Never set PBI_MODELING_MCP_ACCEPT_EULA yourself.",
+  "env": {
+    "FABRIC_AGENT_IDENTITY": "certificate",
+    "FABRIC_AGENT_PBI_EULA": "<set locally>",
+    "AZURE_TENANT_ID": "<set locally>",
+    "AZURE_CLIENT_ID": "<set locally>",
+    "AZURE_CLIENT_CERTIFICATE_PATH": "<set locally>",
+    "AZURE_CONFIG_DIR": "<set locally>"
+  }
+}

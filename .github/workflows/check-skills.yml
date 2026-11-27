@@ -1,0 +1,31 @@
+name: check-skills
+
+# Fails if .github/skills (read by GitHub Copilot) is out of date with .claude/skills (the source, read by Claude Code).
+
+on:
+  pull_request:
+    paths:
+      - ".claude/skills/**"
+      - ".github/skills/**"
+      - "scripts/sync_skills.py"
+      - ".github/workflows/check-skills.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".claude/skills/**"
+      - ".github/skills/**"
+      - "scripts/sync_skills.py"
+      - ".github/workflows/check-skills.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: python scripts/sync_skills.py --check
